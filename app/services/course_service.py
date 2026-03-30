@@ -1,12 +1,6 @@
 """
 app/services/course_service.py
 ================================
-Business logic for Courses and Enrollments.
-
-Spring Boot equivalent
------------------------
-  @Service CourseService + @Service EnrollmentService
-  Uses JPARepository-style patterns translated to async SQLAlchemy selects.
 """
 
 from typing import List, Optional
@@ -29,13 +23,9 @@ class CourseService:
         skip: int = 0,
         limit: int = 20,
     ) -> tuple[List[Course], int]:
-        """
-        Spring Boot: Page<Course> findAll(Specification<Course> spec, Pageable pageable)
-        Returns (items, total_count) for pagination.
-        """
         q = (
             select(Course)
-            .options(selectinload(Course.curriculum))  # ≈ @EntityGraph / JOIN FETCH
+            .options(selectinload(Course.curriculum))
             .where(Course.is_active == True)
         )
         if category:
@@ -51,7 +41,6 @@ class CourseService:
         return list(courses), total
 
     async def get_by_id(self, course_id: int) -> Optional[Course]:
-        """repo.findById(id)  — eager-loads curriculum"""
         result = await self.db.execute(
             select(Course)
             .options(selectinload(Course.curriculum))
@@ -110,7 +99,7 @@ class EnrollmentService:
         result = await self.db.execute(
             select(Enrollment)
             .options(selectinload(Enrollment.course).selectinload(Course.curriculum))
-            .where(Enrollment.user_id == user_id, Enrollment.status == "active")
+            .where(Enrollment.user_id == user_id)
         )
         return list(result.scalars().all())
 

@@ -2,13 +2,6 @@
 app/db/session.py
 ==================
 Async SQLAlchemy engine and session factory.
-
-Spring Boot equivalent
------------------------
-  DataSource bean  +  HikariCP connection pool  +  EntityManagerFactory.
-  SQLAlchemy's create_async_engine  ≈  HikariDataSource configuration.
-  AsyncSession                      ≈  EntityManager (per-request scope).
-  AsyncSessionLocal (sessionmaker)  ≈  EntityManagerFactory.createEntityManager()
 """
 
 from sqlalchemy.ext.asyncio import (
@@ -22,8 +15,6 @@ from sqlalchemy.pool import NullPool
 from app.core.config import settings
 
 # ── Engine ────────────────────────────────────────────────────────────────────
-# pool_size / max_overflow  ≈  HikariCP maximumPoolSize
-# NullPool used in tests to avoid cross-test contamination
 engine: AsyncEngine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DATABASE_ECHO,

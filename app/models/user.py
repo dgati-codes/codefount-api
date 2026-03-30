@@ -1,13 +1,6 @@
 """
 app/models/user.py
 ===================
-User ORM model.
-
-Spring Boot equivalent
------------------------
-  @Entity @Table(name="users") public class User implements UserDetails { ... }
-  Mapped[str]  ≈  @Column(nullable=false) String field;
-  Enum         ≈  @Enumerated(EnumType.STRING)
 """
 
 import enum
@@ -26,11 +19,6 @@ class UserRole(str, enum.Enum):
 
 
 class User(Base, TimestampMixin):
-    """
-    Spring Boot equivalent:
-      @Entity @Table(name="users")
-      public class User implements UserDetails
-    """
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)

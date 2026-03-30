@@ -2,11 +2,6 @@
 app/models/course.py
 =====================
 Course, CurriculumItem, Enrollment ORM models.
-
-Spring Boot equivalent
------------------------
-  @Entity Course, @Entity CurriculumItem, @Entity Enrollment
-  @OneToMany / @ManyToOne / @ManyToMany JPA relationships.
 """
 
 from typing import List, Optional
@@ -20,9 +15,6 @@ from app.db.base import Base, TimestampMixin
 
 
 class Course(Base, TimestampMixin):
-    """
-    Spring Boot: @Entity @Table(name="courses") public class Course
-    """
     __tablename__ = "courses"
 
     id:        Mapped[int]  = mapped_column(primary_key=True, index=True)
@@ -34,14 +26,12 @@ class Course(Base, TimestampMixin):
     desc:      Mapped[str]  = mapped_column(Text, nullable=False)
     outcome:   Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    fee:   Mapped[int] = mapped_column(Integer, nullable=False)   # in GHS pesewas
+    fee: Mapped[int] = mapped_column(Integer, nullable=False)
     offer: Mapped[int] = mapped_column(Integer, nullable=False)
 
     color: Mapped[str]           = mapped_column(String(20), default="#0f766e")
     tag:   Mapped[Optional[str]] = mapped_column(String(50),  nullable=True)
-    is_active: Mapped[bool]      = mapped_column(Boolean, default=True)
-
-    # Stored as PostgreSQL arrays (Spring Boot: @ElementCollection)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     mode:       Mapped[List[str]] = mapped_column(ARRAY(String), default=list)
     highlights: Mapped[List[str]] = mapped_column(ARRAY(String), default=list)
 
@@ -56,10 +46,6 @@ class Course(Base, TimestampMixin):
 
 
 class CurriculumItem(Base):
-    """
-    Spring Boot: @Entity @Table(name="curriculum_items")
-    @ManyToOne @JoinColumn(name="course_id") Course course;
-    """
     __tablename__ = "curriculum_items"
 
     id:        Mapped[int] = mapped_column(primary_key=True)
@@ -72,10 +58,6 @@ class CurriculumItem(Base):
 
 
 class Enrollment(Base, TimestampMixin):
-    """
-    Enrolment join table with extra columns (status, batch_date).
-    Spring Boot: @Entity @Table with @UniqueConstraint({ "user_id", "course_id" })
-    """
     __tablename__ = "enrollments"
     __table_args__ = (
         UniqueConstraint("user_id", "course_id", name="uq_enrollment"),

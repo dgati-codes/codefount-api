@@ -1,17 +1,7 @@
 """
 app/api/v1/endpoints/courses.py
 ================================
-Public course listing + detail.
-Protected enrollment endpoints.
 
-Spring Boot equivalent
------------------------
-  @RestController @RequestMapping("/api/v1/courses") CourseController
-  @RestController @RequestMapping("/api/v1/enrollments") EnrollmentController
-
-PUBLIC  (no token needed)    ≈  permitAll() in HttpSecurity
-PROTECTED (🔒 token needed)  ≈  authenticated() or @PreAuthorize("isAuthenticated()")
-ADMIN (🔒🛡️ admin only)      ≈  @PreAuthorize("hasRole('ADMIN')")
 """
 
 from typing import List, Optional
@@ -41,23 +31,11 @@ router = APIRouter(prefix="/courses", tags=["Courses"])
 @router.get("", response_model=dict, summary="List all active courses (public)")
 async def list_courses(
     category: Optional[str] = Query(None, description="Filter by category"),
-    search:   Optional[str] = Query(None, description="Search by title"),
-    page:     int           = Query(1, ge=1),
-    size:     int           = Query(12, ge=1, le=50),
-    db:       AsyncSession  = Depends(get_db),
+    search: Optional[str] = Query(None, description="Search by title"),
+    page: int = Query(1, ge=1),
+    size: int = Query(12, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """
-    Paginated course list.
-
-    Spring Boot equivalent:
-        @GetMapping
-        public Page<CourseSummary> list(
-            @RequestParam Optional<String> category,
-            @RequestParam Optional<String> search,
-            Pageable pageable) { ... }
-
-    Returns:  { total, page, size, items: [CourseSummary] }
-    """
     svc = CourseService(db)
     skip = (page - 1) * size
     courses, total = await svc.list_courses(category=category, search=search, skip=skip, limit=size)
@@ -71,17 +49,12 @@ async def list_courses(
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /api/v1/courses/{id}     PUBLIC
-# Spring Boot: @GetMapping("/{id}") CourseResponse getById(@PathVariable Long id)
 # ─────────────────────────────────────────────────────────────────────────────
 @router.get("/{course_id}", response_model=CourseResponse, summary="Get course detail (public)")
 async def get_course(
     course_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> CourseResponse:
-    """
-    Returns full course including curriculum.
-    Spring Boot: @PathVariable Long id  →  throws ResourceNotFoundException mapped to 404.
-    """
     svc    = CourseService(db)
     course = await svc.get_by_id(course_id)
     if course is None:
@@ -90,8 +63,7 @@ async def get_course(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# POST /api/v1/courses         🔒🛡️ ADMIN ONLY
-# Spring Boot: @PostMapping  @PreAuthorize("hasRole('ADMIN')")
+# POST /api/v1/courses          ADMIN ONLY
 # ─────────────────────────────────────────────────────────────────────────────
 @router.post("", response_model=CourseResponse, status_code=201, summary="Create course [ADMIN]")
 async def create_course(
@@ -105,7 +77,7 @@ async def create_course(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PATCH /api/v1/courses/{id}   🔒🛡️ ADMIN ONLY
+# PATCH /api/v1/courses/{id}    ADMIN ONLY
 # ─────────────────────────────────────────────────────────────────────────────
 @router.patch("/{course_id}", response_model=CourseResponse, summary="Update course [ADMIN]")
 async def update_course(
@@ -123,7 +95,7 @@ async def update_course(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# DELETE /api/v1/courses/{id}  🔒🛡️ ADMIN ONLY  (soft delete)
+# DELETE /api/v1/courses/{id}   ADMIN ONLY  (soft delete)
 # ─────────────────────────────────────────────────────────────────────────────
 @router.delete("/{course_id}", status_code=204, summary="Soft-delete course [ADMIN]")
 async def delete_course(
@@ -138,24 +110,15 @@ async def delete_course(
     await svc.delete(course)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# ENROLLMENT sub-resource  /api/v1/enrollments
-# Spring Boot: separate @RestController @RequestMapping("/api/v1/enrollments")
-# ═════════════════════════════════════════════════════════════════════════════
 enroll_router = APIRouter(prefix="/enrollments", tags=["Enrollments"])
 
 
 # GET /api/v1/enrollments/my     🔒 PROTECTED
 @enroll_router.get("/my", response_model=List[EnrollmentResponse], summary="My enrollments")
 async def my_enrollments(
-    current_user: User         = Depends(get_current_active_user),
-    db:           AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ) -> List[EnrollmentResponse]:
-    """
-    Spring Boot: @GetMapping("/my")
-    @PreAuthorize("isAuthenticated()")
-    List<EnrollmentResponse> myEnrollments(@AuthenticationPrincipal User user)
-    """
     svc         = EnrollmentService(db)
     enrollments = await svc.get_user_enrollments(current_user.id)
     return [EnrollmentResponse.model_validate(e) for e in enrollments]
@@ -164,14 +127,10 @@ async def my_enrollments(
 # POST /api/v1/enrollments/{course_id}   🔒 PROTECTED
 @enroll_router.post("/{course_id}", status_code=201, response_model=EnrollmentResponse, summary="Enroll in a course")
 async def enroll(
-    course_id:    int,
-    current_user: User         = Depends(get_current_active_user),
-    db:           AsyncSession = Depends(get_db),
+    course_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ) -> EnrollmentResponse:
-    """
-    Spring Boot: @PostMapping("/{courseId}")
-    ResponseEntity<EnrollmentResponse> enroll(@PathVariable Long courseId, @AuthenticationPrincipal User user)
-    """
     svc = EnrollmentService(db)
     try:
         enrollment = await svc.enroll(current_user.id, course_id)
@@ -210,3 +169,47 @@ async def update_progress(
 ) -> None:
     svc = EnrollmentService(db)
     await svc.update_progress(current_user.id, course_id, progress)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /api/v1/courses/{course_id}/students    TRAINER or ADMIN
+# Returns list of students enrolled in a course
+# ─────────────────────────────────────────────────────────────────────────────
+@router.get(
+    "/{course_id}/students",
+    response_model=dict,
+    summary="Students enrolled in a course [TRAINER or ADMIN]",
+)
+async def course_students(
+    course_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    from app.models.user import UserRole, User as UserModel
+    from app.models.course import Enrollment
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    if current_user.role not in (UserRole.TRAINER, UserRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Trainer or admin required")
+
+    result = await db.execute(
+        select(Enrollment)
+        .options(selectinload(Enrollment.user))
+        .where(Enrollment.course_id == course_id)
+    )
+    enrollments = result.scalars().all()
+
+    students = [
+        {
+            "id": e.user_id,
+            "name": e.user.full_name if e.user else f"User #{e.user_id}",
+            "email": e.user.email if e.user else "",
+            "enrollment_id": e.id,
+            "status": e.status,
+            "progress": e.progress,
+            "joined": e.created_at.isoformat() if e.created_at else None,
+        }
+        for e in enrollments
+    ]
+    return {"total": len(students), "items": students}

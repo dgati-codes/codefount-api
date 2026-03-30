@@ -2,14 +2,6 @@
 app/schemas/user.py
 ====================
 Pydantic schemas for User — request bodies + response shapes.
-
-Spring Boot equivalent
------------------------
-  DTOs (Data Transfer Objects):
-    UserCreateRequest.java, UserUpdateRequest.java, UserResponse.java
-  Pydantic's BaseModel  ≈  record / POJO + Jackson @JsonProperty annotations.
-  field_validator        ≈  @NotBlank, @Email, @Size, custom @Constraint validators.
-  model_config(from_attributes=True)  ≈  MapStruct mapper or ModelMapper.
 """
 
 import re
@@ -21,8 +13,8 @@ from app.models.user import UserRole
 
 # ── Request schemas ───────────────────────────────────────────────────────────
 
+
 class UserRegisterRequest(BaseModel):
-    """POST /auth/register — Spring Boot: @RequestBody UserRegisterRequest"""
     full_name:    str
     email:        EmailStr
     password:     str
@@ -33,7 +25,6 @@ class UserRegisterRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def password_strength(cls, v: str) -> str:
-        """Spring Boot equivalent: @Pattern(regexp="...", message="Weak password")"""
         if len(v) < 6:
             raise ValueError("Password must be at least 6 characters")
         return v
@@ -47,13 +38,11 @@ class UserRegisterRequest(BaseModel):
 
 
 class UserLoginRequest(BaseModel):
-    """POST /auth/login — uses OAuth2PasswordRequestForm format"""
     email:    EmailStr
     password: str
 
 
 class UserUpdateRequest(BaseModel):
-    """PATCH /users/me — partial update, all fields optional"""
     full_name:    Optional[str]  = None
     phone:        Optional[str]  = None
     gender:       Optional[str]  = None
@@ -74,11 +63,8 @@ class ChangePasswordRequest(BaseModel):
 
 # ── Response schemas ──────────────────────────────────────────────────────────
 
+
 class UserResponse(BaseModel):
-    """
-    Returned to the client. Never exposes hashed_password.
-    Spring Boot: @JsonIgnore on hashed_password field in UserResponse DTO.
-    """
     model_config = ConfigDict(from_attributes=True)  # ≈ @Mapper(componentModel="spring")
 
     id:           int
@@ -93,7 +79,6 @@ class UserResponse(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    """JWT response shape — Spring Boot: JwtResponse DTO"""
     access_token:  str
     refresh_token: str
     token_type:    str = "bearer"

@@ -21,7 +21,7 @@ class Workshop(Base, TimestampMixin):
     time:        Mapped[str]           = mapped_column(String(60),  nullable=False)
     mode:        Mapped[str]           = mapped_column(String(80),  nullable=False)
     desc:        Mapped[str]           = mapped_column(Text, nullable=False)
-    price:       Mapped[Optional[int]] = mapped_column(Integer, nullable=True)   # null = FREE
+    price: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     seats:       Mapped[int]           = mapped_column(Integer, nullable=False)
     filled:      Mapped[int]           = mapped_column(Integer, default=0)
     color:       Mapped[str]           = mapped_column(String(20), default="#0f766e")

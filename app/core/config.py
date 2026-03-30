@@ -1,13 +1,10 @@
 """
 app/core/config.py
 ==================
-Centralised settings using Pydantic-Settings.
+This file centralizes application configuration and environment settings
 
-Spring Boot equivalent
------------------------
-  application.properties / application.yml  +  @ConfigurationProperties classes.
-  Pydantic's BaseSettings reads from environment variables and .env files
-  exactly like @Value / @ConfigurationProperties, with full type validation.
+Here, Pydantic is used for type-safe config,
+and BaseSettings automatically loads environment variables from .env files.
 """
 
 from functools import lru_cache
@@ -40,7 +37,12 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # ── CORS ─────────────────────────────────
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5173/",
+        "http://127.0.0.1:5173",
+    ]
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

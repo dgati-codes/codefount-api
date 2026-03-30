@@ -4,13 +4,6 @@ app/main.py
 Application entry point — creates the FastAPI app, wires middleware,
 exception handlers, startup events and the API router.
 
-Spring Boot equivalent
------------------------
-  @SpringBootApplication main class  +  WebMvcConfigurer  +  SecurityConfig.
-  app = FastAPI(...)                 ≈  SpringApplication.run(...)
-  app.add_middleware(CORSMiddleware) ≈  corsConfigurationSource() bean in SecurityConfig
-  @app.on_event("startup")          ≈  ApplicationRunner / @PostConstruct / CommandLineRunner
-  app.include_router(api_router)    ≈  @ComponentScan picking up all @RestController beans
 """
 
 import logging
@@ -28,7 +21,6 @@ from app.db.session import engine
 from app.utils.exceptions import register_exception_handlers
 
 # ── Logging setup ─────────────────────────────────────────────────────────────
-# Spring Boot: application.properties  logging.level.root=INFO
 logging.basicConfig(
     level=logging.DEBUG if settings.DEBUG else logging.INFO,
     format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
@@ -37,7 +29,6 @@ logger = logging.getLogger("codefount")
 
 
 # ── Lifespan (startup + shutdown) ─────────────────────────────────────────────
-# Spring Boot equivalent: ApplicationRunner.run() + @PreDestroy / SmartLifecycle
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ── STARTUP ──────────────────────────────────────────────────────────────
@@ -51,11 +42,16 @@ async def lifespan(app: FastAPI):
         from app.models.course import Course, CurriculumItem, Enrollment
         from app.models.workshop import Workshop, WorkshopRegistration
         from app.models.misc import Service, Schedule, Enquiry
+        from app.models.testimonial import Testimonial
+        from app.models.resource import TutorResource
+        from app.models.notification import Notification, UserNotification
+        from app.models.payment_proof import PaymentProof
+
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("✅  Database tables verified")
 
-    # Seed superuser
+    # Seed superuser + all initial data
     from app.db.session import AsyncSessionLocal
     from app.services.user_service import UserService
     async with AsyncSessionLocal() as db:
@@ -70,6 +66,19 @@ async def lifespan(app: FastAPI):
         except Exception as exc:
             logger.warning("Superuser seed skipped: %s", exc)
 
+    # Seed courses, workshops, services, schedules, testimonials
+    from app.db.session import AsyncSessionLocal as SessionLocal2
+    from app.db.seed import seed, seed_testimonials, seed_admin
+
+    async with SessionLocal2() as db:
+        try:
+            await seed(db)
+            await seed_testimonials(db)
+            await db.commit()
+            logger.info("✅  Initial data seeded")
+        except Exception as exc:
+            logger.warning("Data seed skipped: %s", exc)
+
     yield  # ← application runs here
 
     # ── SHUTDOWN ──────────────────────────────────────────────────────────────
@@ -78,7 +87,6 @@ async def lifespan(app: FastAPI):
 
 
 # ── App factory ───────────────────────────────────────────────────────────────
-# Spring Boot: @SpringBootApplication — this is the equivalent bootstrap.
 def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.APP_NAME,
@@ -94,21 +102,24 @@ def create_app() -> FastAPI:
 **Public routes** — no token needed  
 Courses, Workshops, Services, Schedules, Enquiries (guest)
 
-**Protected routes** 🔒 — `Authorization: Bearer <token>`  
+**Protected routes**  — `Authorization: Bearer <token>`  
 My profile, Enrollments, Workshop registrations, Submit enquiry as user
 
-**Admin routes** 🔒🛡️ — requires `role=admin`  
-Create/edit courses & workshops, list enquiries, manage users
+**Admin routes**  — requires `role=admin`  
+Create/edit courses & workshops, manage users, reports dashboard
+
+**Trainer routes**n — requires `role=trainer`  
+Share resources, notify students
+
+**v2 additions** — Testimonials, Notifications, Tutor Resources, Payment Proofs, Admin Reports
         """,
-        docs_url="/docs",           # Swagger UI  — disable in prod: docs_url=None
+        docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
         lifespan=lifespan,
     )
 
     # ── CORS ──────────────────────────────────────────────────────────────────
-    # Spring Boot: corsConfigurationSource() in SecurityConfig
-    # .allowedOrigins(...)  .allowedMethods(...)  .allowedHeaders(...)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -118,11 +129,9 @@ Create/edit courses & workshops, list enquiries, manage users
     )
 
     # ── GZip compression ─────────────────────────────────────────────────────
-    # Spring Boot: server.compression.enabled=true
     app.add_middleware(GZipMiddleware, minimum_size=1000)
 
     # ── Request timing middleware ─────────────────────────────────────────────
-    # Spring Boot: OncePerRequestFilter / HandlerInterceptor for timing
     @app.middleware("http")
     async def add_process_time(request: Request, call_next):
         start = time.perf_counter()
@@ -139,12 +148,9 @@ Create/edit courses & workshops, list enquiries, manage users
     register_exception_handlers(app)
 
     # ── Routes ───────────────────────────────────────────────────────────────
-    # Spring Boot: @ComponentScan auto-detects @RestController beans.
-    # Here we explicitly include the master router.
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
     # ── Health check ──────────────────────────────────────────────────────────
-    # Spring Boot: spring-boot-starter-actuator  GET /actuator/health
     @app.get("/health", tags=["Health"], include_in_schema=False)
     async def health() -> JSONResponse:
         return JSONResponse({"status": "ok", "version": settings.APP_VERSION})

@@ -30,6 +30,10 @@ def hash_password(plain: str) -> str:
     return _pwd_ctx.hash(plain)
 
 
+# Alias used by misc.py / any code that imports get_password_hash
+get_password_hash = hash_password
+
+
 def verify_password(plain: str, hashed: str) -> bool:
     """Equivalent to passwordEncoder.matches(rawPassword, encodedPassword)"""
     return _pwd_ctx.verify(plain, hashed)
